@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Booth</title>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+
+        #container {
+            position: relative;
+            text-align: center;
+        }
+
+        #liveView video {
+            transform: scaleX(-1);
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        #captureButton {
+    font-size: 2em;
+    padding: 15px 30px;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 20px;
+    background-color: rgba(76, 175, 80, 0.5); /* Hintergrundfarbe mit Transparenz */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+
+        #captureButton:hover {
+            background-color: #45a049;
+        }
+
+        #countdown {
+            font-size: 3em;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #333;
+            display: none;
+        }
+
+        #photoCounter {
+            font-size: 2em;
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #333;
+        }
+
+        #timeSinceLastPhoto {
+            font-size: 2em;
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #333;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="container">
+        <div id="liveView">
+            <video autoplay playsinline></video>
+        </div>
+        <div id="countdown"></div>
+        <div id="photoCounter">Bilder: 0</div>
+        <div id="timeSinceLastPhoto">00:00:00</div>
+        <button id="captureButton">Start</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const liveView = document.getElementById('liveView');
+            const videoElement = liveView.querySelector('video');
+            const captureButton = document.getElementById('captureButton');
+            const countdownDisplay = document.getElementById('countdown');
+            const photoCounter = document.getElementById('photoCounter');
+            const timeSinceLastPhotoDisplay = document.getElementById('timeSinceLastPhoto');
+            let photoCount = 0;
+            let lastPhotoTime = Date.now();
+
+            function startCamera() {
+                navigator.mediaDevices.getUserMedia({ video: true })
+                    .then(stream => {
+                        videoElement.srcObject = stream;
+                    })
+                    .catch(error => console.error('Error accessing the camera:', error));
+            }
+
+            function showTimer(countdown) {
+                countdownDisplay.style.display = 'block';
+                countdownDisplay.textContent = countdown;
+
+                const timerInterval = setInterval(() => {
+                    countdown--;
+                    countdownDisplay.textContent = countdown;
+
+                    if (countdown === 0) {
+                        clearInterval(timerInterval);
+                        takePhoto();
+
+                        if (photoCount < 1) {
+                            setTimeout(() => {
+                                showTimer(3);
+                            }, 1000);
+                        } else {
+                            countdownDisplay.style.display = 'none';
+                            captureButton.style.display = 'block';
+                        }
+                    }
+                }, 1000);
+            }
+
+            function takePhoto() {
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.width = videoElement.videoWidth;
+                canvas.height = videoElement.videoHeight;
+                context.scale(-1, 1);
+                context.drawImage(videoElement, 0, 0, canvas.width * -1, canvas.height);
+                const photoURL = canvas.toDataURL('image/jpeg');
+                savePhoto(photoURL);
+            }
+
+            function savePhoto(photoURL) {
+                const link = document.createElement('a');
+                link.href = photoURL;
+                link.download = `photo_${photoCount}.jpg`;
+                link.click();
+                photoCount++;
+                photoCounter.textContent = `Bilder: ${photoCount}`;
+                lastPhotoTime = Date.now();
+            }
+
+            captureButton.addEventListener('click', function () {
+                captureButton.style.display = 'none';
+                showTimer(3); // Starte den Timer mit 3 Sekunden
+            });
+
+            setInterval(() => {
+                const now = Date.now();
+                const secondsSinceLastPhoto = Math.floor((now - lastPhotoTime) / 1000);
+                const hours = Math.floor(secondsSinceLastPhoto / 3600);
+                const minutes = Math.floor((secondsSinceLastPhoto % 3600) / 60);
+                const seconds = secondsSinceLastPhoto % 60;
+                timeSinceLastPhotoDisplay.textContent = ` ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }, 1000);
+
+            startCamera();
+        });
+    </script>
+</body>
+
+</html>
